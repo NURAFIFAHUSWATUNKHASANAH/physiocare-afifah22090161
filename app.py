@@ -161,9 +161,9 @@ st.pyplot(fig3)
 # ====================
 # 4. Tabel Artikel (Metadata)
 # ====================
-st.subheader("📄 Daftar Artikel")
-st.dataframe(df_filtered[["title", "published_at", "word_count"]].rename(columns={
-    "title": "Judul Artikel",
-    "published_at": "Tanggal Publikasi",
-    "word_count": "Jumlah Kata"
-}))
+# st.subheader("📄 Daftar Artikel")
+# st.dataframe(df_filtered[["title", "published_at", "word_count"]].rename(columns={
+#     "title": "Judul Artikel",
+#     "published_at": "Tanggal Publikasi",
+#     "word_count": "Jumlah Kata"
+# }))
