@@ -7,9 +7,9 @@ import pandas as pd
 import re
 
 # --- Koneksi MongoDB ---
-client = MongoClient("mongodb://localhost:27017/")
+client = MongoClient("mongodb+srv://nraffhswkh:22090161@cluster0.fuxtk8w.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
 db = client["bigdata"]
-collection = db["TaskModular2"]
+collection = db["UTS_BigData"]
 
 # --- Ambil data dari MongoDB ---
 data = list(collection.find())
@@ -20,23 +20,25 @@ if not data:
 
 # --- Stopwords Bahasa Indonesia tambahan ---
 custom_stopwords = set([
-    "dan", "di", "ke", "dari", "yang", "untuk", "dengan", "pada", "adalah", 
+    "dan", "di", "ke", "dari", "yang", "untuk", "dengan", "pada", "adalah",
     "ini", "itu", "atau", "juga", "karena", "sebagai", "oleh", "dalam", "agar",
-    "bisa", "tidak", "anda", "jika", "namun", "dapat", "saat", "berikut", 
+    "bisa", "tidak", "anda", "jika", "namun", "dapat", "saat", "berikut",
     "dilakukan", "seperti", "akan", "selain"
 ])
 
 # --- Preprocessing awal: Pastikan 'published_at' valid datetime dan ambil tahun ---
 for item in data:
     try:
-        if not isinstance(item["published_at"], datetime):
-            item["published_at"] = pd.to_datetime(item["published_at"])
-        item["year"] = item["published_at"].year
-    except:
-        item["year"] = None  # untuk data rusak
+        # Jika tipe published_at bukan datetime, konversi ke datetime
+        if not isinstance(item.get("published_at"), datetime):
+            item["published_at"] = pd.to_datetime(item.get("published_at"), errors='coerce')
+        item["year"] = item["published_at"].year if item["published_at"] is not pd.NaT else None
+    except Exception:
+        item["year"] = None  # untuk data rusak / invalid datetime
 
-    # Hitung jumlah kata konten
-    item["word_count"] = len(re.findall(r'\w+', item["content"]))
+    # Hitung jumlah kata konten, jika content ada
+    content = item.get("content", "")
+    item["word_count"] = len(re.findall(r'\w+', content)) if content else 0
 
 # --- Buat DataFrame dan filter data valid ---
 df = pd.DataFrame(data)
@@ -45,6 +47,8 @@ df["year"] = df["year"].astype(int)
 
 # --- Preprocessing konten artikel ---
 def preprocess_text(text):
+    if not isinstance(text, str):
+        return ""
     text = text.lower()
     text = re.sub(r'\d+', '', text)
     text = re.sub(r'\W+', ' ', text)
@@ -66,7 +70,9 @@ selected_topic = st.sidebar.selectbox("Pilih Topik Artikel", available_topics)
 #       Filter Data
 # ====================
 if selected_topic != "Semua":
-    df_filtered = df[df["title"].str.contains(selected_topic, case=False) | df["content"].str.contains(selected_topic, case=False)]
+    # Filter berdasarkan topik di title atau content
+    mask = df["title"].str.contains(selected_topic, case=False, na=False) | df["content"].str.contains(selected_topic, case=False, na=False)
+    df_filtered = df[mask]
     st.info(f"📘 Menampilkan artikel dengan topik: **{selected_topic}**")
 else:
     df_filtered = df
@@ -145,9 +151,11 @@ st.pyplot(fig3)
 # ====================
 # 4. Tabel Artikel (Metadata)
 # ====================
+# Jika ingin menampilkan tabel, aktifkan komentar berikut:
 # st.subheader("📄 Daftar Artikel")
 # st.dataframe(df_filtered[["title", "published_at", "word_count"]].rename(columns={
 #     "title": "Judul Artikel",
 #     "published_at": "Tanggal Publikasi",
 #     "word_count": "Jumlah Kata"
 # }))
+
