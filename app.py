@@ -7,9 +7,9 @@ import pandas as pd
 import re
 
 # --- Koneksi MongoDB ---
-client = MongoClient("mongodb://localhost:27017/")
+client = MongoClient("mongodb+srv://nraffhswkh:22090161@cluster0.fuxtk8w.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
 db = client["bigdata"]
-collection = db["TaskModular2"]
+collection = db["UTS_BigData"]
 
 # --- Ambil data dari MongoDB ---
 data = list(collection.find())
@@ -29,17 +29,27 @@ custom_stopwords = set([
 # --- Preprocessing awal: Pastikan 'published_at' valid datetime dan ambil tahun ---
 for item in data:
     try:
-        if not isinstance(item["published_at"], datetime):
-            item["published_at"] = pd.to_datetime(item["published_at"])
-        item["year"] = item["published_at"].year
-    except:
-        item["year"] = None  # untuk data rusak
+        if "published_at" in item and item["published_at"]:
+            if not isinstance(item["published_at"], datetime):
+                item["published_at"] = pd.to_datetime(item["published_at"])
+            item["year"] = item["published_at"].year
+        else:
+            # Kalau tidak ada tanggal, set default tahun
+            item["published_at"] = datetime(2000, 1, 1)
+            item["year"] = 2000
+    except Exception as e:
+        item["published_at"] = datetime(2000, 1, 1)
+        item["year"] = 2000
+        st.write(f"⚠️ Error parsing tanggal pada data: {e}")
 
-    # Hitung jumlah kata konten
-    item["word_count"] = len(re.findall(r'\w+', item["content"]))
+    # Hitung jumlah kata konten, aman kalau 'content' tidak ada
+    content_text = item.get("content", "")
+    item["word_count"] = len(re.findall(r'\w+', content_text))
 
-# --- Buat DataFrame dan filter data valid ---
+# --- Buat DataFrame ---
 df = pd.DataFrame(data)
+
+# Pastikan 'year' ada dan bertipe int
 df = df.dropna(subset=["year"])
 df["year"] = df["year"].astype(int)
 
@@ -66,7 +76,10 @@ selected_topic = st.sidebar.selectbox("Pilih Topik Artikel", available_topics)
 #       Filter Data
 # ====================
 if selected_topic != "Semua":
-    df_filtered = df[df["title"].str.contains(selected_topic, case=False) | df["content"].str.contains(selected_topic, case=False)]
+    df_filtered = df[
+        df["title"].str.contains(selected_topic, case=False, na=False) | 
+        df["content"].str.contains(selected_topic, case=False, na=False)
+    ]
     st.info(f"📘 Menampilkan artikel dengan topik: **{selected_topic}**")
 else:
     df_filtered = df
@@ -80,6 +93,9 @@ if df_filtered.empty:
 #     Judul Halaman
 # ====================
 st.title("📊 Visualisasi Artikel Edukasi Kesehatan")
+
+# Debug: tampilkan jumlah data
+st.write(f"Jumlah artikel yang ditampilkan: {len(df_filtered)}")
 
 # ====================
 # 1. Artikel per Tahun
@@ -145,9 +161,9 @@ st.pyplot(fig3)
 # ====================
 # 4. Tabel Artikel (Metadata)
 # ====================
-# st.subheader("📄 Daftar Artikel")
-# st.dataframe(df_filtered[["title", "published_at", "word_count"]].rename(columns={
-#     "title": "Judul Artikel",
-#     "published_at": "Tanggal Publikasi",
-#     "word_count": "Jumlah Kata"
-# }))
+st.subheader("📄 Daftar Artikel")
+st.dataframe(df_filtered[["title", "published_at", "word_count"]].rename(columns={
+    "title": "Judul Artikel",
+    "published_at": "Tanggal Publikasi",
+    "word_count": "Jumlah Kata"
+}))
