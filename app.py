@@ -9,7 +9,7 @@ import re
 # --- Koneksi MongoDB ---
 client = MongoClient("mongodb+srv://nraffhswkh:22090161@cluster0.fuxtk8w.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
 db = client["bigdata"]
-collection = db["UTS_BigData"]
+collection = db["TaskModular2"]
 
 # --- Ambil data dari MongoDB ---
 data = list(collection.find())
